@@ -23,18 +23,20 @@ contract Evt {
         address tokenContract;
         string symbolName;
     }
-    mapping (uint8 => Token) tokens; // we support a max of 255 tokens...
-    uint8 symbolNameIndex;
+    
+    Token token;
+    mapping (address => uint) tokenBalanceForAddress;
+    address tokenWalletAddress;
     
     //////////////////////
     //     FUNCTIONS    //
     //////////////////////
-    function addData(string key, string value, uint dispatchId) returns (uint) {
-        // uint8 symbolNameIndex = getSymbolIndexOrThrow(symbolName);
-        // require(tokens[symbolNameIndex].tokenContract != address(0));
-        // ERC20Interface token = ERC20Interface(tokens[symbolNameIndex].tokenContract);
-        // require(token.transferFrom(msg.sender, address(this), 1) == true);
-        // require(token.transfer(account_2, 1) == true);
+    function addData(string key, string value, uint dispatchId) {
+        require(tokenBalanceForAddress[msg.sender] >= 1);
+        require(tokenBalanceForAddress[msg.sender] - 1 <= tokenBalanceForAddress[msg.sender]);
+        require(tokenBalanceForAddress[tokenWalletAddress] + 1 >= tokenBalanceForAddress[tokenWalletAddress]);
+        tokenBalanceForAddress[tokenWalletAddress] += 1;
+        tokenBalanceForAddress[msg.sender] -= 1;
         
         require(records_length + 1 > records_length);
         records_length++;
@@ -42,9 +44,11 @@ contract Evt {
         records[records_length].key = key;
         records[records_length].dispatchId = dispatchId;
         
-        // require(token.transferFrom(account_2, msg.sender, 1) == true);
-        
-        return records_length;
+        require(tokenBalanceForAddress[tokenWalletAddress] >= 1);
+        require(tokenBalanceForAddress[tokenWalletAddress] - 1 <= tokenBalanceForAddress[tokenWalletAddress]);
+        require(tokenBalanceForAddress[msg.sender] + 1 >= tokenBalanceForAddress[msg.sender]);
+        tokenBalanceForAddress[tokenWalletAddress] -= 1;
+        tokenBalanceForAddress[msg.sender] += 1;
     }
     
     function searchByKey(string _key) constant returns (string, string, uint) {
@@ -58,40 +62,39 @@ contract Evt {
         
         return (records[index].key, records[index].value, records[index].dispatchId);
     }
-
+    
     //////////////////////
     // TOKEN MANAGEMENT //
     //////////////////////
-    function addToken(string symbolName, address erc20TokenAddress) {
-        require(!hasToken(symbolName));
-        require(symbolNameIndex + 1 > symbolNameIndex);
-        symbolNameIndex++;
-
-        tokens[symbolNameIndex].symbolName = symbolName;
-        tokens[symbolNameIndex].tokenContract = erc20TokenAddress;
+    function setTokenWalletAddress(address _address) {
+        require(_address != address(0));
+        tokenWalletAddress = _address;
+    }
+    
+    function setToken(string symbolName, address erc20TokenAddress) {
+        token.symbolName = symbolName;
+        token.tokenContract = erc20TokenAddress;
+    }
+    
+    function depositToken(uint amount) {
+        ERC20Interface tokenInstance = ERC20Interface(token.tokenContract);
+        require(tokenInstance.transferFrom(msg.sender, address(this), amount) == true);
+        require(tokenBalanceForAddress[msg.sender] + amount >= tokenBalanceForAddress[msg.sender]);
+        tokenBalanceForAddress[msg.sender] += amount;
     }
 
-    function hasToken(string symbolName) constant returns (bool) {
-        uint8 index = getSymbolIndex(symbolName);
-        if (index == 0) {
-            return false;
-        }
-        return true;
+    function withdrawToken(uint amount) {
+        ERC20Interface tokenInstance = ERC20Interface(token.tokenContract);
+
+        require(tokenBalanceForAddress[msg.sender] - amount >= 0);
+        require(tokenBalanceForAddress[msg.sender] - amount <= tokenBalanceForAddress[msg.sender]);
+
+        tokenBalanceForAddress[msg.sender] -= amount;
+        require(tokenInstance.transfer(msg.sender, amount) == true);
     }
 
-    function getSymbolIndex(string symbolName) internal returns (uint8) {
-        for (uint8 i = 1; i <= symbolNameIndex; i++) {
-            if (stringsEqual(tokens[i].symbolName, symbolName)) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
-    function getSymbolIndexOrThrow(string symbolName) returns (uint8) {
-        uint8 index = getSymbolIndex(symbolName);
-        require(index > 0);
-        return index;
+    function getBalance() constant returns (uint) {
+        return tokenBalanceForAddress[msg.sender];
     }
 
     ////////////////////////////////
